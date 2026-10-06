@@ -3,3 +3,5 @@ dist/
 *.log
 .env
 dev.db-journal
+.env.*
+!.env.example
