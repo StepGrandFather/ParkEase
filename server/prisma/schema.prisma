@@ -1,0 +1,98 @@
+// Park Ease Database Schema (Prisma + SQLite)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String    @default("$2a$10$7EqJtq98hPqEX7fNZaFWoOhiM58qRj5s0b7JjL1kY2/H9c1HkH7Gy")
+  name      String
+  phone     String?
+  role      String    @default("USER") // USER, ADMIN
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  bookings  Booking[]
+
+  @@map("users")
+}
+
+model Location {
+  id          String        @id @default(uuid())
+  name        String
+  address     String
+  city        String
+  latitude    Float
+  longitude   Float
+  totalSpots  Int
+  hourlyRate  Float         // In INR (₹)
+  imageUrl    String?
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  slots       ParkingSlot[]
+
+  @@map("locations")
+}
+
+model ParkingSlot {
+  id           String    @id @default(uuid())
+  locationId   String
+  location     Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  slotNumber   String // e.g. "G-01", "1-05", "2-12"
+  floor        String // "G", "1", "2", "3"
+  vehicleType  String    @default("CAR") // CAR, SUV, BIKE, EV
+  isEVCharging Boolean   @default(false)
+  status       String    @default("AVAILABLE") // AVAILABLE, MAINTENANCE, OCCUPIED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  bookings     Booking[]
+
+  @@unique([locationId, slotNumber])
+  @@index([locationId])
+  @@map("parking_slots")
+}
+
+model Booking {
+  id               String      @id @default(uuid())
+  bookingReference String?     @unique
+  userId           String
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  slotId           String
+  slot             ParkingSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  vehicleNumber    String
+  startTime        DateTime
+  endTime          DateTime
+  totalAmount      Float       // In INR (₹)
+  status           String      @default("CONFIRMED") // HOLD, CONFIRMED, ACTIVE, COMPLETED, CANCELLED
+  paymentStatus    String      @default("PAID") // PENDING, PAID, REFUNDED
+  holdExpiresAt    DateTime?
+  qrCodeData       String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  payment          Payment?
+
+  @@index([slotId, startTime, endTime])
+  @@index([userId])
+  @@map("bookings")
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  bookingId     String   @unique
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  transactionId String   @unique
+  paymentMethod String   @default("CARD") // CARD, UPI, DEMO_WALLET
+  amount        Float    // In INR (₹)
+  status        String   @default("SUCCESS") // PENDING, SUCCESS, FAILED, REFUNDED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("payments")
+}
